@@ -1,59 +1,75 @@
 // @todo: напишите здесь код парсера
 
 /**
- * @callback transformContent
+ * @callback transformContentFn
  * @param content значение атрибута тега
  */
 /**
  * Функция для поиска метатега по атрибуту name и возвращение преобразованного content
  * @param name атрибут метатега
- * @param { transformContent } callback 
+ * @param { transformContentFn } callback 
  * @returns результат коллбэка
  */
-function transforContentByName(name, transformContent) {
-    
+function transformByName(name, transformContentFn) {
+    const metaTag = document.querySelector(`meta[name="${name}"]`);
+    return transformContentFn(metaTag.content);
 }
 
 /**
  * Ищет метатег по атрибуту property, возвращает content
- * @param property
- * @returns {string} content без "og:"
+ * @param property без префикса "og:"
+ * @returns {string}
  */
 function getContentByProperty(property) {
-
+    const metaTag = document.querySelector(`meta[property="og:${property}"]`);
+    return metaTag.content;
 }
 
 /**
- * @callback transformText
+ * @callback transformTextFn
  * @param textContent textContent элемента
  */
 /**
  * Функция для поиска элемента по селектору и возвращение преобразованного textContent
  * @param selector
- * @param { transformText } callback 
+ * @param { transformTextFn } callback 
  * @returns результат коллбэка
  */
-function transformTextBySelector(name, transformText) {
-    
+function transformTextBySelector(selector, transformTextFn) {
+    const tag = document.querySelector(selector);
+    return transformTextFn(tag.textContent.trim());
 }
 
 /**
  * Получить объект meta
- * @param page
+ * @param head
  * @returns {object} 
  */
-function parseMeta(page) {
-    // @todo: Проверка входных данных
+function parseMeta() {
+    if (!document ) {
+        throw new Error('Некоректные входные данные');
+    }
 
-    // @todo: Получить язык страницы
+    const meta = {}
 
-    // @todo: Получить заголовок страницы без названия сайта
+    meta["language"] = document.querySelector("html").lang;
 
-    // @todo: Поулчить ключевые слова
+    meta["title"] = transformTextBySelector("title", text => {
+        // Заголовок вида "{заголовк самой страницы} - {название сайта}"
+        return text.split("—")[0].trim() // Получить заголовок старницы без названия сайта
+    })
+
+    meta["keywords"] = transformByName("keywords", keywords => keywords.split(", "));
     
-    // @todo: Получить описание из мета-тега
+    meta["description"] = transformByName("description", description => description);
 
-    // @todo: Получить opengraph-описание 
+    meta["opengraph"] = {
+        "title" : getContentByProperty("title"),
+        "image" : getContentByProperty("image"),
+        "type" : getContentByProperty("type")
+    }
+
+    return meta;
 }
 
 /**
@@ -115,8 +131,14 @@ function parsePage() {
 
     // @todo: Каждому контейнеру использовать соотвествующию функцию
 
+    const productContainer = document.querySelector(".product");
+    const suggestedContainer  =  document.querySelector(".suggested");
+    const reviewsContainer = document.querySelector(".reviews");
+
+    const meta = parseMeta();
+
     return {
-        "meta": {},
+        "meta": meta,
         "product": {},
         "suggested": [],
         "reviews": []
