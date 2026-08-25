@@ -50,26 +50,18 @@ function parseMeta() {
         throw new Error('Некоректные входные данные');
     }
 
-    const meta = {}
-
-    meta["language"] = document.querySelector("html").lang;
-
-    meta["title"] = transformTextBySelector("title", text => {
-        // Заголовок вида "{заголовк самой страницы} - {название сайта}"
-        return text.split("—")[0].trim() // Получить заголовок старницы без названия сайта
-    })
-
-    meta["keywords"] = transformByName("keywords", keywords => keywords.split(", "));
-    
-    meta["description"] = transformByName("description", description => description);
-
-    meta["opengraph"] = {
-        "title" : getContentByProperty("title"),
-        "image" : getContentByProperty("image"),
-        "type" : getContentByProperty("type")
-    }
-
-    return meta;
+    return {
+        "language": document.querySelector("html").lang,
+        // из заголовка ввида "{заголовок самой страницы} - {название сайта}" берём только первую часть
+        "title": transformTextBySelector("title", text => text.split("—")[0].trim()),
+        "keywords": transformByName("keywords", keywords => keywords.split(", ")),
+        "description": transformByName("description", description => description),
+        "opengraph": {
+            "title": getContentByProperty("title"),
+            "image": getContentByProperty("image"),
+            "type": getContentByProperty("type")
+            }
+        }
 }
 
 /**
@@ -131,15 +123,13 @@ function parsePage() {
 
     // @todo: Каждому контейнеру использовать соотвествующию функцию
 
-    const productContainer = document.querySelector(".product");
-    const suggestedContainer  =  document.querySelector(".suggested");
-    const reviewsContainer = document.querySelector(".reviews");
-
-    const meta = parseMeta();
+    const product = document.querySelector(".product");
+    const suggested  =  document.querySelector(".suggested");
+    const reviews = document.querySelector(".reviews");
 
     return {
-        "meta": meta,
-        "product": {},
+        "meta": parseMeta(),
+        "product": parseProduct(product),
         "suggested": [],
         "reviews": []
     };
