@@ -12,6 +12,9 @@
  */
 function transformByName(name, transformContentFn) {
     const metaTag = document.querySelector(`meta[name="${name}"]`);
+    if (transformContentFn === undefined) {
+        return metaTag.content;
+    }
     return transformContentFn(metaTag.content);
 }
 
@@ -37,6 +40,9 @@ function getContentByProperty(property) {
  */
 function transformTextBySelector(selector, transformTextFn) {
     const tag = document.querySelector(selector);
+    if (transformTextFn === undefined) {
+        return tag.textContent.trim();
+    }
     return transformTextFn(tag.textContent.trim());
 }
 
@@ -55,7 +61,7 @@ function parseMeta() {
         // из заголовка ввида "{заголовок самой страницы} - {название сайта}" берём только первую часть
         "title": transformTextBySelector("title", text => text.split("—")[0].trim()),
         "keywords": transformByName("keywords", keywords => keywords.split(", ")),
-        "description": transformByName("description", description => description),
+        "description": transformByName("description"),
         "opengraph": {
             "title": getContentByProperty("title"),
             "image": getContentByProperty("image"),
@@ -66,23 +72,61 @@ function parseMeta() {
 
 /**
  * Получить объект product
- * @param container
+ * @param product
  * @returns {object}
  */
-function parseProduct(container) {
-    // @todo: Проверка входных данных
-
-    // @todo: Получить идентификатор товара в дата-атрибуте
+function parseProduct(product) {
+    if (!product || product.innerHTML === "") {
+        throw new Error("Некоректные входные данные товара");
+    }
 
     // @todo: Получить массив фотографий, пройтись циклом по <nav>
 
-    // @todo: Получить название товара, статус лайка, цену, прошлую цену, скидку, валюту
+    const [currentPrice, oldPrice] = transformTextBySelector(".price", textContent => textContent.split("\n"))
+        .map(price => +price.trim().slice(1));
+    const discount = oldPrice - currentPrice;
+    const discountPercent = `${discount / (oldPrice / 100)}%`;
 
-    // @todo: Создать массивы бирок, категорий и скидок
+    const tags = {
+        "category" : [],
+        "discount" : [],
+        "label" : []
+    }
+    product.querySelectorAll(".tags > *").forEach(tag => {
+        if (tag.className === "green") {
+            tags["category"].push(tag.textContent);
+        }
+        if (tag.className === "blue") {
+            tags["discount"].push(tag.textContent);
+        }
+        if (tag.className === "red") {
+            tags["label"].push(tag.textContent);
+        }
+    })
 
     // @todo: Пройтись циклом по списку properties, получить объект {key: value}
 
     // @todo: Получить полное описание без лишних атрибутов
+
+    return {
+        "id": product.dataset.id,
+        "name": product.querySelector("h1").textContent,
+        "isLiked": Array(product.querySelector(".like").classList).includes("active"),
+        "tags": tags,
+        "price": currentPrice,
+        "oldPrice": oldPrice,
+        "discount": discount,
+        "discountPercent": discountPercent,
+        "currency": transformTextBySelector(".price", text => {
+            if (text.includes("₽")) {
+                return "RUB";
+            } else if (text.includes("€")) {
+                return "EUR";
+            } else if (text.includes("$")) {
+                return "USD";
+            }
+        }),
+    }
 }
 
 /**
