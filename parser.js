@@ -33,17 +33,18 @@ function getContentByProperty(property) {
  * @param textContent textContent элемента
  */
 /**
- * Функция для поиска элемента по селектору и возвращение преобразованного textContent
+ * Функция для поиска элемента по селектору и возвращение преобразованного указанного property
  * @param selector
- * @param { transformTextFn } callback 
+ * @param {string} property // Указывает свойство которое обработает transformTextFn, например: textContetn, className, classList, innerHTML
+ * @param { transformTextFn } callback // Если не указать, то функция вернёт значение по указанному porperty
  * @returns результат коллбэка
  */
-function transformTextBySelector(selector, transformTextFn) {
+function transformPropertyBySelector(selector, property, transformTextFn) {
     const tag = document.querySelector(selector);
     if (transformTextFn === undefined) {
-        return tag.textContent.trim();
+        return tag[property].trim();
     }
-    return transformTextFn(tag.textContent.trim());
+    return transformTextFn(tag[property].trim());
 }
 
 /**
@@ -59,7 +60,7 @@ function parseMeta() {
     return {
         "language": document.querySelector("html").lang,
         // из заголовка ввида "{заголовок самой страницы} - {название сайта}" берём только первую часть
-        "title": transformTextBySelector("title", text => text.split("—")[0].trim()),
+        "title": transformPropertyBySelector("title", "textContent", text => text.split("—")[0].trim()),
         "keywords": transformByName("keywords", keywords => keywords.split(", ")),
         "description": transformByName("description"),
         "opengraph": {
@@ -82,7 +83,7 @@ function parseProduct(product) {
 
     // @todo: Получить массив фотографий, пройтись циклом по <nav>
 
-    const [currentPrice, oldPrice] = transformTextBySelector(".price", textContent => textContent.split("\n"))
+    const [currentPrice, oldPrice] = transformPropertyBySelector(".price", "textContent", textContent => textContent.split("\n"))
         .map(price => +price.trim().slice(1));
     const discount = oldPrice - currentPrice;
     const discountPercent = `${discount / (oldPrice / 100)}%`;
@@ -117,7 +118,7 @@ function parseProduct(product) {
         "oldPrice": oldPrice,
         "discount": discount,
         "discountPercent": discountPercent,
-        "currency": transformTextBySelector(".price", text => {
+        "currency": transformPropertyBySelector(".price", "textContent", text => {
             if (text.includes("₽")) {
                 return "RUB";
             } else if (text.includes("€")) {
