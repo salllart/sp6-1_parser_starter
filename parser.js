@@ -69,7 +69,7 @@ function parseMeta() {
         "keywords": transformByName("keywords", keywords => keywords.split(", ")),
         "description": transformByName("description"),
         "opengraph": {
-            "title": getContentByProperty("title"),
+            "title": getContentByProperty("title").split("—")[0].trim(),
             "image": getContentByProperty("image"),
             "type": getContentByProperty("type")
             }
@@ -97,7 +97,7 @@ function parseProduct(product) {
     const [currentPrice, oldPrice] = transformBySelcetor(".price", "textContent", text => text.split("\n"))
         .map(price => +price.trim().slice(1));
     const discount = oldPrice - currentPrice;
-    const discountPercent = `${discount / (oldPrice / 100)}%`;
+    const discountPercent = `${(discount / (oldPrice / 100)).toFixed(2)}%`;
 
     const tags = {
         "category" : [],
@@ -109,10 +109,10 @@ function parseProduct(product) {
         if (tag.className === "green") {
             tags["category"].push(tag.textContent);
         }
-        if (tag.className === "blue") {
+        if (tag.className === "red") {
             tags["discount"].push(tag.textContent);
         }
-        if (tag.className === "red") {
+        if (tag.className === "blue") {
             tags["label"].push(tag.textContent);
         }
     })
@@ -162,7 +162,7 @@ function parseSuggested(suggested) {
             "name": article.querySelector("h3").textContent,
             "description": article.querySelector("p").textContent,
             "image": article.querySelector("img").src,
-            "price": +article.querySelector("b").textContent.trim().slice(1),
+            "price": article.querySelector("b").textContent.trim().slice(1),
             "currency": transformBySelcetor("b", "textContent", text => {
                 if (text.includes("₽")) {
                     return "RUB";
@@ -205,8 +205,8 @@ function parseReviews(reviews) {
                 "avatar": article.querySelector(".author > img").src,
                 "name": article.querySelector(".author > span").textContent
             },
-            "title": article.querySelector(".title"),
-            "desciption": article.querySelector("p").textContent,
+            "title": article.querySelector(".title").textContent,
+            "description": article.querySelector("p").textContent,
             "date": `${DD}.${MM}.${YYYY}`
         })
     })
