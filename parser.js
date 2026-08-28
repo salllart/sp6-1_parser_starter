@@ -33,7 +33,7 @@ function getContentByProperty(property) {
  * @param textContent textContent элемента
  */
 /**
- * Функция для поиска элемента по селектору и возвращение преобразованного указанного property
+ * Функция для поиска элемента по селектору и возвращение преобразованного значения по указанному property
  * @param selector
  * @param {string} property // Указывает свойство которое обработает transformTextFn, например: textContetn, className, classList, innerHTML
  * @param { transformTextFn } callback // Если не указать, то функция вернёт значение по указанному porperty
@@ -41,6 +41,10 @@ function getContentByProperty(property) {
  */
 function transformPropertyBySelector(selector, property, transformTextFn) {
     const tag = document.querySelector(selector);
+    if (!tag[property]) {
+        throw new Error("Указанного свойства не существует")
+    }
+
     if (transformTextFn === undefined) {
         return tag[property].trim();
     }
@@ -81,9 +85,15 @@ function parseProduct(product) {
         throw new Error("Некоректные входные данные товара");
     }
 
-    // @todo: Получить массив фотографий, пройтись циклом по <nav>
+    const imageTags = product.querySelectorAll(".preview > nav img");
+    const images = [];
+    imageTags.forEach(img => images.push({
+        "preview": img.src,
+        "full": img.dataset.src,
+        "alt": img.alt
+    }));
 
-    const [currentPrice, oldPrice] = transformPropertyBySelector(".price", "textContent", textContent => textContent.split("\n"))
+    const [currentPrice, oldPrice] = transformPropertyBySelector(".price", "textContent", text => text.split("\n"))
         .map(price => +price.trim().slice(1));
     const discount = oldPrice - currentPrice;
     const discountPercent = `${discount / (oldPrice / 100)}%`;
@@ -93,6 +103,7 @@ function parseProduct(product) {
         "discount" : [],
         "label" : []
     }
+
     product.querySelectorAll(".tags > *").forEach(tag => {
         if (tag.className === "green") {
             tags["category"].push(tag.textContent);
@@ -105,9 +116,14 @@ function parseProduct(product) {
         }
     })
 
-    // @todo: Пройтись циклом по списку properties, получить объект {key: value}
+    const propertiesContainer = product.querySelectorAll(".properties > li");
+    propertiesContainer.forEach(el => console.log(el.textContent.trim()))
 
-    // @todo: Получить полное описание без лишних атрибутов
+    const properties = {};
+    propertiesContainer.forEach(li => {
+        const [key, value] = li.textContent.trim().split("\n");
+        properties[key] = value.trim();
+    });
 
     return {
         "id": product.dataset.id,
@@ -127,6 +143,9 @@ function parseProduct(product) {
                 return "USD";
             }
         }),
+        "description": transformPropertyBySelector(".description", "innerHTML", desc => desc.replace(' class="unused"', '')),
+        "images": images,
+        "properties": properties
     }
 }
 
