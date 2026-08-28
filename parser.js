@@ -29,26 +29,27 @@ function getContentByProperty(property) {
 }
 
 /**
- * @callback transformTextFn
+ * @callback transformPropertyFn
  * @param textContent textContent элемента
  */
 /**
  * Функция для поиска элемента по селектору и возвращение преобразованного значения по указанному property
  * @param selector
- * @param {string} property // Указывает свойство которое обработает transformTextFn, например: textContetn, className, classList, innerHTML
- * @param { transformTextFn } callback // Если не указать, то функция вернёт значение по указанному porperty
+ * @param {string} property // Указывает свойство которое обработает transformProperty, например: textContetn, className, classList, innerHTML
+ * @param { transformPropertyFn } callback // Если не указать, то функция вернёт значение по указанному porperty
+ * @param container // По умолчанию document
  * @returns результат коллбэка
  */
-function transformPropertyBySelector(selector, property, transformTextFn) {
-    const tag = document.querySelector(selector);
+function transformBySelcetor(selector, property, transformPropertyFn, container=document) {
+    const tag = container.querySelector(selector);
     if (!tag[property]) {
         throw new Error("Указанного свойства не существует")
     }
 
-    if (transformTextFn === undefined) {
+    if (transformPropertyFn === undefined) {
         return tag[property].trim();
     }
-    return transformTextFn(tag[property].trim());
+    return transformPropertyFn(tag[property].trim());
 }
 
 /**
@@ -64,7 +65,7 @@ function parseMeta() {
     return {
         "language": document.querySelector("html").lang,
         // из заголовка ввида "{заголовок самой страницы} - {название сайта}" берём только первую часть
-        "title": transformPropertyBySelector("title", "textContent", text => text.split("—")[0].trim()),
+        "title": transformBySelcetor("title", "textContent", text => text.split("—")[0].trim()),
         "keywords": transformByName("keywords", keywords => keywords.split(", ")),
         "description": transformByName("description"),
         "opengraph": {
@@ -93,7 +94,7 @@ function parseProduct(product) {
         "alt": img.alt
     }));
 
-    const [currentPrice, oldPrice] = transformPropertyBySelector(".price", "textContent", text => text.split("\n"))
+    const [currentPrice, oldPrice] = transformBySelcetor(".price", "textContent", text => text.split("\n"))
         .map(price => +price.trim().slice(1));
     const discount = oldPrice - currentPrice;
     const discountPercent = `${discount / (oldPrice / 100)}%`;
@@ -116,11 +117,9 @@ function parseProduct(product) {
         }
     })
 
-    const propertiesContainer = product.querySelectorAll(".properties > li");
-    propertiesContainer.forEach(el => console.log(el.textContent.trim()))
-
+    const propertiesTags = product.querySelectorAll(".properties > li");
     const properties = {};
-    propertiesContainer.forEach(li => {
+    propertiesTags.forEach(li => {
         const [key, value] = li.textContent.trim().split("\n");
         properties[key] = value.trim();
     });
@@ -134,7 +133,7 @@ function parseProduct(product) {
         "oldPrice": oldPrice,
         "discount": discount,
         "discountPercent": discountPercent,
-        "currency": transformPropertyBySelector(".price", "textContent", text => {
+        "currency": transformBySelcetor(".price", "textContent", text => {
             if (text.includes("₽")) {
                 return "RUB";
             } else if (text.includes("€")) {
@@ -143,7 +142,7 @@ function parseProduct(product) {
                 return "USD";
             }
         }),
-        "description": transformPropertyBySelector(".description", "innerHTML", desc => desc.replace(' class="unused"', '')),
+        "description": transformBySelcetor(".description", "innerHTML", desc => desc.replace(' class="unused"', '')),
         "images": images,
         "properties": properties
     }
@@ -151,42 +150,70 @@ function parseProduct(product) {
 
 /**
  * Получить объект suggested
- * @param container
- * @returns {object}
+ * @param suggested
+ * @returns {array}
  */
-function parseSuggested(container) {
-    // @todo: Пройтись циклом по items
+function parseSuggested(suggested) {
+    const items = suggested.querySelectorAll(".items > article");
+    const result = [];
 
-        // @todo: Получить дочерние элементы карточки товара
+    items.forEach(article => {
+        result.push({
+            "name": article.querySelector("h3").textContent,
+            "description": article.querySelector("p").textContent,
+            "image": article.querySelector("img").src,
+            "price": +article.querySelector("b").textContent.trim().slice(1),
+            "currency": transformBySelcetor("b", "textContent", text => {
+                if (text.includes("₽")) {
+                    return "RUB";
+                } else if (text.includes("€")) {
+                    return "EUR";
+                } else if (text.includes("$")) {
+                    return "USD";
+                }
+            }, article)
+        })
+    })
 
-        // @todo: Получить ссылку на изображение из атрибута
-
-        // @todo: Получить название, цену, валюту, описание
+    return result;
 }
 
 /**
  * Получить объект reviews
- * @param container
- * @returns {object}
+ * @param reviews
+ * @returns {array}
  */
-function parseReviews(container) {
+function parseReviews(reviews) {
     // @todo: Пройтись циклом по items
+    const items = reviews.querySelectorAll(".items > article");
+    const result = [];
 
-        // @todo: Получить дочерние элементы отзыва
+    items.forEach(article => {
+        let rating = 0;
+        const stars = article.querySelectorAll(".rating > span");
+        stars.forEach(star => {
+            if (star.className === "filled") {
+            rating += 1;
+            }
+        });
 
-        // @todo: Посчитать количество звёзд с filled
+        const [DD, MM, YYYY] = article.querySelector("i").textContent.trim().split("/");
 
-        // @todo: Получить заголовк и последующие описание
-
-        // @todo: Получить дочерние элементы author: получить аватар, имя, дату (DD.MM.YYYY)
-    
+        result.push({
+            "rating": rating,
+            "author": {
+                "avatar": article.querySelector(".author > img").src,
+                "name": article.querySelector(".author > span").textContent
+            },
+            "title": article.querySelector(".title"),
+            "desciption": article.querySelector("p").textContent,
+            "date": `${DD}.${MM}.${YYYY}`
+        })
+    })
+    return result;
 }
 
 function parsePage() {
-    // @todo: Объявить перменные контейнеры по селекторам .product, .suggested, .reviews
-
-    // @todo: Каждому контейнеру использовать соотвествующию функцию
-
     const product = document.querySelector(".product");
     const suggested  =  document.querySelector(".suggested");
     const reviews = document.querySelector(".reviews");
@@ -194,8 +221,8 @@ function parsePage() {
     return {
         "meta": parseMeta(),
         "product": parseProduct(product),
-        "suggested": [],
-        "reviews": []
+        "suggested": parseSuggested(suggested),
+        "reviews": parseReviews(reviews)
     };
 }
 
